@@ -726,6 +726,22 @@ class KITTIDataset(Dataset):
 		target.add_field("orientations", orientations)
 		target.add_field("hm", heat_map)
 		target.add_field("gt_bboxes", gt_bboxes) # for validation visualization
+# ---------- NEW: 生成前景 mask (下采样大小 output_height/output_width) ----------
+		mask_map = np.zeros((self.output_height, self.output_width), dtype=np.float32)
+		for i in range(self.max_objs):
+			if reg_mask[i] == 0:
+				continue
+			x1,y1,x2,y2 = bboxes[i]
+			if (x2 - x1) <= 0 or (y2 - y1) <= 0:
+				continue
+			x1 = int(max(0, np.floor(x1)))
+			y1 = int(max(0, np.floor(y1)))
+			x2 = int(min(self.output_width-1 , np.ceil(x2)))
+			y2 = int(min(self.output_height-1, np.ceil(y2)))
+			mask_map[y1:y2+1, x1:x2+1] = 1.0
+		target.add_field("mask", torch.from_numpy(mask_map).unsqueeze(0))  # [1,H,W]
+# ---------------------------------------------------------------------------
+
 		target.add_field("occlusions", occlusions)
 		target.add_field("truncations", truncations)
 

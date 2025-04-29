@@ -495,7 +495,8 @@ class Loss_Computation():
 
 			with torch.no_grad():
 				try:
-					pred_IoU_3D = get_iou_3d(preds['corners_3D'], pred_targets['corners_3D']).mean()
+					#pred_IoU_3D = get_iou_3d(preds['corners_3D'], pred_targets['corners_3D']).mean()
+					pred_IoU_3D = get_iou_3d(preds['corners_3D'].cpu(), pred_targets['corners_3D'].cpu()).mean()
 				except:
 					pred_IoU_3D = torch.tensor([0.0]).type_as(preds['corners_3D'])
 

@@ -74,7 +74,9 @@ MODEL:
                  'weighted_avg_depth_loss',
                  'compensated_depth_loss',
                  'horizon_hm_loss',
+                 "loss_mask",
     ]
+    DICE_WEIGHT: 1.0
     LOSS_UNCERTAINTY: [True, True, False, True, True, True, True, True, False, True, True]
     INIT_LOSS_WEIGHT: [1,
                        1,

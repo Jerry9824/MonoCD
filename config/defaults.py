@@ -136,6 +136,8 @@ _C.MODEL.HEAD.CENTER_AGGREGATION = False
 
 # smooth_l1
 _C.MODEL.HEAD.LOSS_TYPE = ["Penalty_Reduced_FocalLoss", "L1", "giou", "berhu"]
+#dice损失权重
+_C.MODEL.HEAD.DICE_WEIGHT = 1.0
 
 # centernet or fcos
 _C.MODEL.HEAD.HEATMAP_TYPE = 'centernet'

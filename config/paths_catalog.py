@@ -1,7 +1,7 @@
 import os
 
 class DatasetCatalog():
-    DATA_DIR = "/path/to/your/kitti/"
+    DATA_DIR = "/root/autodl-tmp/MonoCD/kitti/"
     DATASETS = {
         "kitti_train": {
             "root": "KITTI/training/",

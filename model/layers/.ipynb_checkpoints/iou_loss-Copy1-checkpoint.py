@@ -121,11 +121,7 @@ def get_iou_3d(pred_corners, target_corners):
 
     # x-z plane overlap
     for i in range(N):
-        # —— 先把前四个角点的 x,z 坐标转成 CPU 上的 numpy 数组 —— 
-        coords_a = A[i, 0:4, [0, 2]].detach().cpu().numpy()
-        coords_b = B[i, 0:4, [0, 2]].detach().cpu().numpy()
-        bottom_a = Polygon(coords_a)
-        bottom_b = Polygon(coords_b)
+        bottom_a, bottom_b = Polygon(A[i, 0:4, [0, 2]]), Polygon(B[i, 0:4, [0, 2]])
 
         if bottom_a.is_valid and bottom_b.is_valid:
             # check is valid,  A valid Polygon may not possess any overlapping exterior or interior rings.

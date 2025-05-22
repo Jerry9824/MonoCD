@@ -34,12 +34,11 @@ class Loss_Computation():
 		self.corner_depth_sp = cfg.MODEL.HEAD.SUPERVISE_CORNER_DEPTH
 		self.loss_keys = cfg.MODEL.HEAD.LOSS_NAMES
 		self.down_ratio = cfg.MODEL.BACKBONE.DOWN_RATIO
+
 		self.world_size = get_world_size()
 		self.dim_weight = torch.as_tensor(cfg.MODEL.HEAD.DIMENSION_WEIGHT).view(1, 3)
 		self.uncertainty_range = cfg.MODEL.HEAD.UNCERTAINTY_RANGE
-         # 3D‐IoU Loss 权重
-		self.iou3d_w = getattr(cfg.MODEL.HEAD, "IOU3D_WEIGHT", 1.0)
-        
+
 		# loss functions
 		loss_types = cfg.MODEL.HEAD.LOSS_TYPE
 		self.cls_loss_fnc = FocalLoss(cfg.MODEL.HEAD.LOSS_PENALTY_ALPHA, cfg.MODEL.HEAD.LOSS_BETA) # penalty-reduced focal loss
@@ -494,13 +493,11 @@ class Loss_Computation():
 								preds['y3d_uncertainty'] * self.loss_weights['y3d_offset_loss']
 				y3d_loss = y3d_loss.mean()
 
-			# —— 新增：可反向的 3D‐IoU Loss —— 
-			# 1) 直接算 IoU map（形状 [N]）
-			iou3d_map = get_iou_3d(preds['corners_3D'], pred_targets['corners_3D'])  # FloatTensor[N]
-			# 2) 变成 loss = 1 - IoU
-			loss_iou3d = (1.0 - iou3d_map).mean() * self.iou3d_w          
-			# 4) 同时保留一个纯 IoU 供日志打印
-			pred_IoU_3D = iou3d_map.mean().detach()
+			with torch.no_grad():
+				try:
+					pred_IoU_3D = get_iou_3d(preds['corners_3D'], pred_targets['corners_3D']).mean()
+				except:
+					pred_IoU_3D = torch.tensor([0.0]).type_as(preds['corners_3D'])
 
 			# corner loss
 			if self.compute_corner_loss:
@@ -632,8 +629,6 @@ class Loss_Computation():
 			'bbox_loss': reg_2D_loss,
 			'dims_loss': dims_3D_loss,
 			'orien_loss': orien_3D_loss,
-             # —— 新增 3D-IoU Loss —— 
-			'loss_iou3d':  self.iou3d_w * loss_iou3d,
 		}
 
 		log_loss_dict = {

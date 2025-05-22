@@ -14,25 +14,45 @@ class Detect_Head(nn.Module):
         self.predictor = make_predictor(cfg, in_channels)
         self.cfg = cfg
         # ---------- 前景 mask 预测分支 -------------- ### NEW BEGIN
-        mid = in_channels // 2
+        mid = in_channels // 2          # 例：C=256 → mid=128
+
+        # ✦ 残差双卷积块（Res-DoubleConv） ---------------------------------
+        class ResBlock(nn.Module):
+            def __init__(self, c_in, c_out):
+                super().__init__()
+                self.conv = nn.Sequential(
+                    nn.Conv2d(c_in,  c_out, 3, padding=1, bias=False),
+                    nn.BatchNorm2d(c_out), nn.ReLU(inplace=True),
+                    nn.Conv2d(c_out, c_out, 3, padding=1, bias=False),
+                    nn.BatchNorm2d(c_out)
+                )
+                # 若升/降通道，用 1×1 投影；否则恒等
+                self.proj = (nn.Identity() if c_in == c_out else
+                             nn.Sequential(nn.Conv2d(c_in, c_out, 1, bias=False),
+                                           nn.BatchNorm2d(c_out)))
+
+                self.act = nn.ReLU(inplace=True)
+
+            def forward(self, x):
+                return self.act(self.conv(x) + self.proj(x))
+        # ------------------------------------------------------------------
+
         self.mask_decoder = nn.Sequential(
-            # 卷积提取
-            nn.Conv2d(in_channels, mid, kernel_size=3, padding=1),
-            nn.BatchNorm2d(mid), nn.ReLU(inplace=True),
-            # 再次提取
-            nn.Conv2d(mid, mid, kernel_size=3, padding=1),
-            nn.BatchNorm2d(mid), nn.ReLU(inplace=True),
-            # 第一次上采样 ×2
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
-            nn.Conv2d(mid, mid // 2, kernel_size=3, padding=1),
-            nn.BatchNorm2d(mid // 2), nn.ReLU(inplace=True),
-            # 第二次上采样 ×2
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
-            nn.Conv2d(mid // 2, mid // 4, kernel_size=3, padding=1),
-            nn.BatchNorm2d(mid // 4), nn.ReLU(inplace=True),
-            # 最后一层输出单通道 mask logits
-            nn.Conv2d(mid // 4, 1, kernel_size=1)
+            # stage-0 : 1/4 → 1/4（残差提特征）
+            ResBlock(in_channels, mid),
+
+            # stage-1 : 1/4 → 1/2
+            nn.ConvTranspose2d(mid, mid // 2, 2, stride=2),          # 上采样×2
+            ResBlock(mid // 2, mid // 2),
+
+            # stage-2 : 1/2 → 1
+            nn.ConvTranspose2d(mid // 2, mid // 4, 2, stride=2),     # 再上采样×2
+            ResBlock(mid // 4, mid // 4),
+
+            # 输出 1-channel logits
+            nn.Conv2d(mid // 4, 1, 1)
         )
+
         self.mask_loss = DiceLoss()
         self.dice_w    = getattr(cfg.MODEL.HEAD, "DICE_WEIGHT", 1.0)  # 可在 yaml 中配置
         # ---------- 前景 mask 预测分支 -------------- ### NEW END
